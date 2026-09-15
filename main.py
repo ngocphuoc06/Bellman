@@ -7,7 +7,7 @@ from config import *
 from data_manager import fetch_online_retail_real_data, load_custom_csv_data, generate_walmart_synthetic_data, split_data
 from eda_analyzer import perform_eda, fit_parameters
 from dp_model import BellmanInventoryDP
-from evaluator import perform_time_series_cv, simulate_policy
+from evaluator import perform_time_series_cv, simulate_policy, evaluate_model
 
 def main(use_real_data=True, custom_csv_path=None):
     print("=== BƯỚC 1: THU THẬP & TẢI DỮ LIỆU ===")
@@ -24,16 +24,16 @@ def main(use_real_data=True, custom_csv_path=None):
     print(f"Tổng số ngày quan sát: {len(df_raw)} ngày.")
     print(f"Mẫu dữ liệu thực tế 5 ngày đầu tiên:\n{df_raw.head()}\n")
     
-    print("=== BƯỚC 2: DATA SPLITTING ===")
+    print("\n================ BƯỚC 2: EDA (KHÁM PHÁ DỮ LIỆU THÔ) ================")
+    raw_mean, raw_var = perform_eda(df_raw)
+    
+    print("\n================ BƯỚC 3: DATA SPLITTING ================")
     train_data, test_data = split_data(df_raw, test_days=TEST_DAYS)
     print(f"Tập huấn luyện (Train): {len(train_data)} ngày.")
     print(f"Tập kiểm thử (Test): {len(test_data)} ngày (chặn Data Leakage).")
     
-    print("\n================ BƯỚC 3: EDA (KHÁM PHÁ DỮ LIỆU THẬT) ================")
-    train_mean, train_var = perform_eda(train_data)
-    
     print("\n================ BƯỚC 4: TIỀN XỬ LÝ & TÌM THAM SỐ (FIT) ================")
-    n_estimated, p_estimated = fit_parameters(train_mean, train_var)
+    n_estimated, p_estimated = fit_parameters(raw_mean, raw_var)
     
     print("\n================ BƯỚC 5: HUẤN LUYỆN MÔ HÌNH BELLMAN DP ================")
     print(">> Đang chạy Kiểm định chéo chuỗi thời gian (Rolling-window 5-fold CV)...")
@@ -55,6 +55,11 @@ def main(use_real_data=True, custom_csv_path=None):
     print(f" - Phí Lưu kho : ${holding:,.2f}")
     print(f" - Phí Cạn kho : ${shortage:,.2f}")
     print(f"TỔNG CHI PHÍ VẬN HÀNH THỰC TẾ TRÊN DỮ LIỆU THẬT: ${total_cost:,.2f}")
+
+    print("\n================ BƯỚC 7: ĐÁNH GIÁ MÔ HÌNH (MODEL EVALUATION) ================")
+    print(">> Tính Accuracy, F1 Score, RMSSE và Ma trận Nhầm lẫn trên cả tập Train & Test.")
+    evaluate_model(train_data, s_reorder, S_target, n_estimated, p_estimated, train_data, dataset_name="Train")
+    evaluate_model(test_data, s_reorder, S_target, n_estimated, p_estimated, train_data, dataset_name="Test")
 
 if __name__ == "__main__":
     main(use_real_data=True)
