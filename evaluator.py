@@ -38,23 +38,24 @@ def simulate_policy(test_data, s_reorder, S_target):
             
     return total_cost, total_ordering, total_holding, total_shortage
 
-def perform_time_series_cv(train_data):
+def perform_time_series_cv(train_data, n_splits=5):
     """
     Bước 5: Huấn luyện & Tinh chỉnh mô hình (Training & Cross-Validation)
-    Thực hiện Time-Series 5-Fold CV (Rolling window).
+    Thực hiện Time-Series Cross-Validation (Rolling window) linh hoạt theo độ dài dữ liệu.
     """
-    windows = [
-        (1300, 1400),
-        (1400, 1500),
-        (1500, 1600),
-        (1600, 1700),
-        (1700, 1800)
-    ]
+    total_len = len(train_data)
+    val_size = max(10, total_len // (n_splits + 2))
     
     print(f"{'Fold':<8} {'Train Window':<15} {'Val Window':<15} {'Mean':<6} {'Var':<6} {'Policy (s,S)':<15} {'Val Cost':<10}")
     print("-" * 80)
     
-    for i, (train_end, val_end) in enumerate(windows, 1):
+    for i in range(1, n_splits + 1):
+        train_end = total_len - (n_splits - i + 1) * val_size
+        val_end = train_end + val_size
+        
+        if train_end <= 10:
+            continue
+            
         fold_train = train_data.iloc[:train_end]
         fold_val = train_data.iloc[train_end:val_end]
         
